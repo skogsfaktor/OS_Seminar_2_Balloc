@@ -52,11 +52,44 @@ struct head* buddy(struct head* block) {
     return (struct head*)((long int)block ^ mask);
 }
 
+//Merges 2 buddies 
+//Takes the header of the one with the lowest address and throws away the other
 struct head* merge(struct head* block, struct head* sibling) {
     struct head* primary;
+    //Determines which block has the lowest address 
     if(sibling < block) {
         primary = sibling;
     } else {
         primary = block;
     }
+    //Increase level(size) of the primary block by 1 because of the merging
+    primary->level = primary->level + 1;
+    return primary;
+}
+
+//Hides the secret head when returning an allocated block to the user(malloc). 
+void* hide(struct head* block) {
+    return (void*)(block+1);
+}
+
+//Performed when converting a memory reference to a head structure(free)
+struct head* magic(void* memory) {
+    return ((struct head*)memory-1);
+}
+
+//Used to determine which block to allocate. 
+int level(int size) {
+    int req = size + sizeof(struct head);
+    int i = 0;
+    req = req >> MIN;
+    while(req > 0) {
+        i++;
+        req = req>>1;
+    }
+    return i;
+}
+
+//Used for testing basic function
+void test() {
+
 }
