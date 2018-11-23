@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/sysinfo.h>
+#include <assert.h>
+
+//Compile with gcc -c buddy.c 
 
 //The smallest block i.e. 2^5(MIN) = 32 bytes 
 #define MIN 5 
@@ -89,7 +92,13 @@ int level(int size) {
     return i;
 }
 
-//Used for testing basic function
+//Used for testing basic functions
 void test() {
+    printf("Helloworld\n");
+}
+
+//Should be called for every balloc
+//Checks that all pointers are correct 
+void sanity() {
 
 }
