@@ -92,9 +92,43 @@ int level(int size) {
     return i;
 }
 
+struct head* find(int index) {
+    struct head* cat;
+    return cat;
+}
+
+void insert(struct head* block) {
+
+}
+
+void* balloc(size_t size) {
+    //Dont allocate anything of size 0 
+    if(size==0) {
+        return NULL;
+    }
+    //Find the appropriate level for the size
+    int index = level(size);
+    //Go through the free list of sizes and get a free block
+    struct head* taken = find(index);
+    //Hide the header and return the block to the user
+    return hide(taken);
+}
+
+void bfree(void* memory) {
+    //Error handling
+    if(memory != NULL) {
+        //Go back to the header 
+        struct head* block = magic(memory);
+        //Insert the block into the list free list
+        insert(block);
+    }
+    return;
+}
+
 //Used for testing basic functions
 void test() {
     printf("Helloworld\n");
+    struct head* new_block = new();
 }
 
 //Should be called for every balloc
