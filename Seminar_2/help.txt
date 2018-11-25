@@ -1,0 +1,11 @@
+struct head* new();
+struct head* buddy(struct head* block);
+struct head* merge(struct head* block);
+struct head* split(struct head* block);
+void* hide(struct head* block);
+struct head* magic(void* memory);
+int level(int size);
+void* balloc(size_t size);
+void bfree(void* memory);
+struct head* find(int index);
+void insert(struct head* block);

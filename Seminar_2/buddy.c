@@ -18,6 +18,9 @@
 //Flag values for knowing if the block has been taken or not. 
 enum flag {Free, Taken};
 
+//Holds the double linked free lists of each layer 
+struct head* flists[LEVELS] = {NULL};
+
 //Each block consists of a head and a byte sequence. 
 //The byte sequence is handed out to the requester(balloc caller)
 struct head {
@@ -33,12 +36,13 @@ struct head* new() {
     struct head *new = (struct head *) mmap(NULL,
                                             PAGE,
                                             PROT_READ | PROT_WRITE,
-                                            MAP_PRIVATE,
+                                            MAP_PRIVATE | MAP_ANONYMOUS,
                                             -1,
                                             0);
     if(new == MAP_FAILED) {
         return NULL;
     }
+    //The 12 last bits should be zero
     assert(((long int)new & 0xfff) == 0);
     new->status = Free;
     new->level = LEVELS-1;
@@ -57,17 +61,36 @@ struct head* buddy(struct head* block) {
 
 //Merges 2 buddies 
 //Takes the header of the one with the lowest address and throws away the other
-struct head* merge(struct head* block, struct head* sibling) {
-    struct head* primary;
-    //Determines which block has the lowest address 
-    if(sibling < block) {
-        primary = sibling;
-    } else {
-        primary = block;
-    }
-    //Increase level(size) of the primary block by 1 because of the merging
-    primary->level = primary->level + 1;
-    return primary;
+// struct head* merge(struct head* block, struct head* sibling) {
+//     struct head* primary;
+//     //Determines which block has the lowest address 
+//     if(sibling < block) {
+//         primary = sibling;
+//     } else {
+//         primary = block;
+//     }
+//     //Increase level(size) of the primary block by 1 because of the merging
+//     primary->level = primary->level + 1;
+//     return primary;
+// }
+
+//Merges 2 buddies
+//Always returns the primary block 
+struct head* merge(struct head* block) {
+    int index = block->level;
+    long int mask = 0xffffffffffffffff << (1+index+MIN);
+    return (struct head*)((long int)block & mask);
+}
+
+//This should happen if we dont have a block of the right size
+struct head* split(struct head* block) {
+    //Gets the block down one level
+    int index = block->level - 1;
+    //Mask to find the buddy of the block 
+    int mask = 0x1 << (index + MIN);
+    //Return the buddy of the block at block_level-1
+    //Effectively splitting the block 
+    return (struct head*)((long int)block | mask);
 }
 
 //Hides the secret head when returning an allocated block to the user(malloc). 
@@ -92,11 +115,21 @@ int level(int size) {
     return i;
 }
 
+//Finds a free block to balloc given an index(level). 
+//Needs to unlink the block from the linked list 
+//Needs to split blocks that are way to big 
 struct head* find(int index) {
+    //Check there is a free block at this index level
+    //If no block exists, use new to allocate a new one and recursively
+    //split the block down to the required level
+    
+    //If there is a free block, fix the list and return the block(with the header)
     struct head* cat;
     return cat;
 }
 
+//Inserts a block into one of the free lists 
+//Needs to check for merging recursively 
 void insert(struct head* block) {
 
 }
@@ -127,8 +160,20 @@ void bfree(void* memory) {
 
 //Used for testing basic functions
 void test() {
-    printf("Helloworld\n");
+    printf("Level for 20 should be 1: %d\n", level(20));
+    printf("Level for 72 should be 2: %d\n", level(72));
+    printf("Size of a head is: %ld\n", sizeof(struct head));
     struct head* new_block = new();
+    printf("The new block level should be 7: %d\n", new_block->level);
+    printf("Level of new block: %d\n", new_block->level);
+    struct head* split_block = split(new_block);
+    split_block->level = new_block->level-1;
+    printf("Level of split block: %d\n", split_block->level);
+    struct head* merged_block = merge(split_block);
+    printf("Level of merged block: %d\n", merged_block->level);
+    void* memory = hide(merged_block);
+    struct head* revealed = magic(memory);
+    printf("Level of block revealed: %d\n", revealed->level);
 }
 
 //Should be called for every balloc
