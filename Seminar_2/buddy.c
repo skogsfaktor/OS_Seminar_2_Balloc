@@ -11,7 +11,7 @@
 //The smallest block i.e. 2^5(MIN) = 32 bytes
 #define MIN 5
 //The maximum amount of levels i.e. 32, 64.. 4 KByte maximum
-//1 32, 2 64, 3 128, 4 256, 5 512, 6 1024, 7 2056, 8 4096
+//0 32, 1 64, 2 128, 3 256, 4 512, 5 1024, 6 2056, 7 4096
 #define LEVELS 8
 //Defines the size of the largest block(2^12 bytes), used in mmap
 #define PAGE 4096
@@ -101,11 +101,10 @@ struct head *split(struct head *block)
 {
     //Gets the block down one level
     int index = block->level - 1;
-    //Mask to find the buddy of the block
+    //Mask to find the buddy of the block, uses index so get the level right
     int mask = 0x1 << (index + MIN);
-    //Return the buddy of the block at block_level-1
     //Effectively splitting the block
-    return (struct head *)((long int)block | mask);
+    return (struct head*)((long int)block | mask);
 }
 
 //Hides the secret head when returning an allocated block to the user(malloc).
@@ -198,22 +197,36 @@ struct head *find(int index)
 //Needs to check for merging recursively
 void insert(struct head *block)
 {
+    printf("FREE START:\n");
+    
     int index = block->level;
     block->status = Free;
     struct head *bud;
     struct head *primary;
-
-    printf("Trying to insert level %d block\n", index);
+    
     //Merge recursively
+    printf("Inserting block %d at level %d\n", block, index);
+    printf("Buddy of block %d, buddy(buddy()) %d, buddy(buddy(buddy(()) %d\n", buddy(block), buddy(buddy(block)), buddy(buddy(buddy(block))));
     for (int i = index; i <= 7; i++)
     {
         bud = buddy(block);
-        if (bud->status == Free && block->level < 7)
+        if (bud->status == Free && bud->level == block->level && block->level < 7)
         {
+            //Unlink the buddy from the list, can be anywhere in the list
+            if(bud->prev == NULL) {
+                printf("Buddy %d, level %d is first in the list, unlinking\n", bud, bud->level);
+                flists[bud->level] = bud->next;
+                bud->next->prev = NULL;
+            } else {
+                printf("Buddy %d, level %d is in the middle of the list, unlinking\n", bud, bud->level);
+                bud->prev->next = bud->next;
+                bud->next->prev = bud->prev;
+            }
+
             int pre_merge_index = block->level;
-            printf("Buddy of block at level %d is free!\n", block->level);
+            printf("Buddy %d of block %d at level %d is free!\n", bud, block, block->level);
             block = merge(block); //Increases level of block
-            printf("Post-merge block level %d\n", block->level);
+            printf("Post-merge block id %d level %d\n", block, block->level);
             block->level = pre_merge_index+1;
         }
         else
@@ -305,28 +318,41 @@ void test()
     }
 
     printf("\n\nBalloc Tests: \n");
-    void *balloc_test = balloc(2000);
-    void* balloc_test3;
-    balloc_test = balloc(990);
-    balloc_test3 = balloc(5);
-    balloc_test = balloc(2000);
-    balloc_test = balloc(2000);
+    void* tes = balloc(2000);
     sanity();
-    bfree(balloc_test);
+    bfree(tes);
     sanity();
-    // void* balloc_test2 = balloc(900);
+
+    struct head* behold = new();
+    behold->level = 7;
+    behold = split(behold);
+    printf("New %d, Buddy %d, Split %d, buddy(split) %d, buddy(buddy(split)) %d, Merged(should be equal to original buddy) %d\n", behold, buddy(behold), split(behold), buddy(split(behold)), buddy(buddy(split(behold))), merge(split(behold)));
+    printf("Merge split from buddy %d, merge split %d\n", merge(buddy(split(behold))), merge(split(behold)));
+    printf("Behold %d, Hide %d, Hide/Reveal %d\n", behold, hide(behold), magic(hide(behold)));
+    printf("Block %d, Buddy %d, Buddy(Buddy) %d\n", behold, buddy(behold), buddy(buddy(behold)));
+    printf("YOU NEED TO SPLIT BEFORE YOU USE BUDDY; FUCK buddy() does not work for new blocks\n");
+    // void *balloc_test = balloc(2000);
+    // void* balloc_test3;
+    // balloc_test = balloc(990);
+    // balloc_test3 = balloc(5);
+    // balloc_test = balloc(2000);
+    // balloc_test = balloc(2000);
     // sanity();
-    // bfree(balloc_test2);
+    // bfree(balloc_test);
     // sanity();
-    bfree(balloc_test3);
-    //sanity();
+    // // void* balloc_test2 = balloc(900);
+    // // sanity();
+    // // bfree(balloc_test2);
+    // // sanity();
+    // bfree(balloc_test3);
+    // //sanity();
 }
 
 //Should be called for every balloc
 //Checks that all pointers are correct
 void sanity()
 {
-    printf("\nSanity Check:\n");
+    printf("\nSANITY CHECK:\n");
     for (int i = 0; i <= 7; i++)
     {
         if (flists[i] != NULL)
