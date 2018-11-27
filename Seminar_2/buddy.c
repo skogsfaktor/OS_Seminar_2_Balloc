@@ -100,7 +100,7 @@ struct head *merge(struct head *block)
 struct head *split(struct head *block)
 {
     //Gets the block down one level
-    int index = block->level - 1;
+    int index = block->level-1;
     //Mask to find the buddy of the block, uses index so get the level right
     int mask = 0x1 << (index + MIN);
     //Effectively splitting the block
@@ -145,27 +145,35 @@ struct head *find(int index)
     //split the block down to the required level
     if (flists[index] == NULL)
     {
-        //Create new block
-        new_block = new ();
+        //Create new block, level->7 and status->Free set in new()
+        new_block = new();
         //Split the block until the required size has been reached
         for (int i = 6; i >= index; i--)
         {
+            printf("Iteration/Level %d: ", i);
+            printf("Block %p, ", new_block);
+            new_block = split(new_block);
             new_block->status = Free;
+            buddy(new_block)->status = Free;
             new_block->level = i;
+            buddy(new_block)->level = i;
+            printf("Split %p, Buddy(split) %p, Buddy(Buddy(split)) %p\n", new_block, buddy(new_block), buddy(buddy(new_block)));
+            printf("Split level %d, merge(split) %p, merge(split) level %d\n", new_block->level, merge(new_block), merge(new_block)->level);
             if (flists[i] != NULL)
             {
                 //The first block in the list
                 struct head *first_block = flists[i];
                 //Pointer operations
-                first_block->prev = new_block;
-                new_block->next = first_block;
+                first_block->prev = buddy(new_block);
+                buddy(new_block)->next = first_block;
             }
-            flists[i] = new_block;
-
-            printf("Splitting block, putting level to %d\n", new_block->level);
-            new_block = split(new_block);
+            flists[i] = buddy(new_block);
+            //new_block = split(new_block);
         }
-        new_block->level = index;
+        new_block->status = Taken;
+        printf("Returning block %p with level %d\n", new_block, new_block->level);
+        return new_block;
+        //new_block->level = index;
     }
     else
     {
@@ -193,6 +201,30 @@ struct head *find(int index)
     return new_block;
 }
 
+
+struct head *find_2(int index)
+{
+    struct head* new_block;
+    if(flists[index] == NULL) {
+        new_block = new();
+        new_block->level = 7;
+        new_block->status = Free;
+        new_block->prev = NULL;
+        new_block->next = NULL;
+    }
+    
+    for(int i = new_block->level-1; i > index; i--) {
+        new_block = split(new_block);
+        new_block->status = Free;
+        new_block->level = i;
+        if(flists[i] != NULL) {
+            flists[i]->prev = new_block;
+            new_block->next = flists[i];
+        }
+        flists[i] = new_block;
+    }
+}
+
 //Inserts a block into one of the free lists
 //Needs to check for merging recursively
 void insert(struct head *block)
@@ -210,7 +242,7 @@ void insert(struct head *block)
     for (int i = index; i <= 7; i++)
     {
         bud = buddy(block);
-        if (bud->status == Free && bud->level == block->level && block->level < 7)
+        if (bud->status == Free && bud->level == block->level)
         {
             //Unlink the buddy from the list, can be anywhere in the list
             if(bud->prev == NULL) {
@@ -301,36 +333,53 @@ void test()
     printf("Level for 2000 should be 6: %d\n", level(2000));
     printf("Level for 4000 should be 7: %d\n", level(4000));
     printf("Size of a head is: %ld\n", sizeof(struct head));
-    struct head *new_block = new ();
-    printf("The new block level should be 7: %d\n", new_block->level);
-    printf("Level of new block: %d\n", new_block->level);
-    struct head *split_block = split(new_block);
-    split_block->level = new_block->level - 1;
-    printf("Level of split block: %d\n", split_block->level);
-    struct head *merged_block = merge(split_block);
-    printf("Level of merged block: %d\n", merged_block->level);
-    void *memory = hide(merged_block);
-    struct head *revealed = magic(memory);
-    printf("Level of block revealed: %d\n", revealed->level);
-    if (flists[7] == NULL)
-    {
-        printf("Pointer to the level 7 of the array: %s\n", flists[7]);
-    }
+    // struct head *new_block = new ();
+    // printf("The new block level should be 7: %d\n", new_block->level);
+    // printf("Level of new block: %d\n", new_block->level);
+    // struct head *split_block = split(new_block);
+    // split_block->level = new_block->level - 1;
+    // printf("Level of split block: %d\n", split_block->level);
+    // struct head *merged_block = merge(split_block);
+    // printf("Level of merged block: %d\n", merged_block->level);
+    // void *memory = hide(merged_block);
+    // struct head *revealed = magic(memory);
+    // printf("Level of block revealed: %d\n", revealed->level);
+    // if (flists[7] == NULL)
+    // {
+    //     printf("Pointer to the level 7 of the array: %s\n", flists[7]);
+    // }
 
     printf("\n\nBalloc Tests: \n");
-    void* tes = balloc(2000);
+    void* tes = balloc(4000);
     sanity();
     bfree(tes);
     sanity();
 
-    struct head* behold = new();
-    behold->level = 7;
-    behold = split(behold);
-    printf("New %d, Buddy %d, Split %d, buddy(split) %d, buddy(buddy(split)) %d, Merged(should be equal to original buddy) %d\n", behold, buddy(behold), split(behold), buddy(split(behold)), buddy(buddy(split(behold))), merge(split(behold)));
-    printf("Merge split from buddy %d, merge split %d\n", merge(buddy(split(behold))), merge(split(behold)));
-    printf("Behold %d, Hide %d, Hide/Reveal %d\n", behold, hide(behold), magic(hide(behold)));
-    printf("Block %d, Buddy %d, Buddy(Buddy) %d\n", behold, buddy(behold), buddy(buddy(behold)));
-    printf("YOU NEED TO SPLIT BEFORE YOU USE BUDDY; FUCK buddy() does not work for new blocks\n");
+    
+    //behold = split(behold);
+    //behold->level = 6;
+    //buddy(behold)->level = 6; //THE BUDDY DOES NOT KNOW ITS LEVEL AND BUDDY NEEDS THE LEVEL
+    //printf("level %d, block %p, buddy %p, budbud %p, budbudbud %p, split %p, buddy(split) %p, merge(split) %p\n", behold->level, behold, buddy(behold), buddy(buddy(behold)), buddy(buddy(buddy(behold))), split(behold), buddy(split(behold)), merge(split(behold)));
+    struct head* behold = new(); //new() fixes the level to 7
+    printf("adress of new block %p\n", behold);
+    printf("end of new block %p\n", behold+PAGE);
+    //printf("level %d, block %p, buddy %p, budbud %p, budbudbud %p, split %p, buddy(split) %p, merge(split) %p, merge(buddy(split)) %p\n", behold->level, behold, buddy(behold), buddy(buddy(behold)), buddy(buddy(buddy(behold))), split(behold), buddy(split(behold)), merge(split(behold)), merge(buddy(split(behold))));
+    for(int i = 6; i > 2; i--) {
+        behold = split(behold);
+        behold->level = i;
+        buddy(behold)->level = i; //BUDDY NEEDS THE LEVEL TO GO BACK
+        split(behold)->level = i-1; //MERGE NEEDS THE LEVEL TO MERGE, not necessary in real code
+        printf("level %d, block %p, buddy %p, budbud %p, budbudbud %p, split %p, buddy(split) %p, merge(split) %p, merge(buddy(split)) %p\n", behold->level, behold, buddy(behold), buddy(buddy(behold)), buddy(buddy(buddy(behold))), split(behold), buddy(split(behold)), merge(split(behold)), merge(buddy(split(behold))));       
+    }
+
+    // struct head* behold = new();
+    // behold->level = 7;
+    // behold = split(behold);
+    // printf("New %d, Buddy %d, Split %d, buddy(split) %d, buddy(buddy(split)) %d, Merged(should be equal to original buddy) %d\n", behold, buddy(behold), split(behold), buddy(split(behold)), buddy(buddy(split(behold))), merge(split(behold)));
+    // printf("Merge split from buddy %d, merge split %d\n", merge(buddy(split(behold))), merge(split(behold)));
+    // printf("Behold %d, Hide %d, Hide/Reveal %d\n", behold, hide(behold), magic(hide(behold)));
+    // printf("Block %d, Buddy %d, Buddy(Buddy) %d\n", behold, buddy(behold), buddy(buddy(behold)));
+    // printf("YOU NEED TO SPLIT BEFORE YOU USE BUDDY; FUCK buddy() does not work for new blocks\n");
     // void *balloc_test = balloc(2000);
     // void* balloc_test3;
     // balloc_test = balloc(990);
@@ -358,11 +407,11 @@ void sanity()
         if (flists[i] != NULL)
         {
             struct head *block = flists[i];
-            printf("First block ID %d, level %d, Back %d, Next %d, Taken %d\n", block, block->level, block->prev, block->next, block->status);
+            printf("First block ID %p, level %d, Back %p, Next %p, Taken %d\n", block, block->level, block->prev, block->next, block->status);
             while (block->next != NULL)
             {
                 block = block->next;
-                printf("    List block ID %d, Level %d, Back %d, Next %d, Taken %d\n", block, block->level, block->prev, block->next, block->status);
+                printf("    List block ID %p, Level %d, Back %p, Next %p, Taken %d\n", block, block->level, block->prev, block->next, block->status);
             }
         }
     }
