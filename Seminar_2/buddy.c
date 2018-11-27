@@ -201,30 +201,6 @@ struct head *find(int index)
     return new_block;
 }
 
-
-struct head *find_2(int index)
-{
-    struct head* new_block;
-    if(flists[index] == NULL) {
-        new_block = new();
-        new_block->level = 7;
-        new_block->status = Free;
-        new_block->prev = NULL;
-        new_block->next = NULL;
-    }
-    
-    for(int i = new_block->level-1; i > index; i--) {
-        new_block = split(new_block);
-        new_block->status = Free;
-        new_block->level = i;
-        if(flists[i] != NULL) {
-            flists[i]->prev = new_block;
-            new_block->next = flists[i];
-        }
-        flists[i] = new_block;
-    }
-}
-
 //Inserts a block into one of the free lists
 //Needs to check for merging recursively
 void insert(struct head *block)
@@ -238,7 +214,9 @@ void insert(struct head *block)
     
     //Merge recursively
     printf("Inserting block %p at level %d, ", block, index);
-    printf("Buddy %p, buddy(buddy()) %p, buddy(buddy(buddy(()) %p\n", buddy(block), buddy(buddy(block)), buddy(buddy(buddy(block))));
+    if(block->level != 7) {
+        printf("Buddy %p, buddy(buddy()) %p, buddy(buddy(buddy(()) %p\n", buddy(block), buddy(buddy(block)), buddy(buddy(buddy(block))));
+    }
     for (int i = index; i <= 7; i++)
     {
         printf("Iteration %d\n", i);
@@ -256,10 +234,14 @@ void insert(struct head *block)
                     bud->next->prev = NULL;
                 }
             } else {
-                printf("Buddy %p, level %d is in the middle of the list, unlinking\n", bud, bud->level);
+                printf("Buddy %p, level %d is later in the list, unlinking\n", bud, bud->level);
                 bud->prev->next = bud->next;
-                bud->next->prev = bud->prev;
+                if(bud->next != NULL) {
+                    bud->next->prev = bud->prev;
+                }
             }
+            bud->next = NULL;
+            bud->prev = NULL;
 
             int pre_merge_index = block->level;
             printf("Buddy %d of block %p at level %d is free!\n", bud, block, block->level);
@@ -355,14 +337,30 @@ void test()
     //     printf("Pointer to the level 7 of the array: %s\n", flists[7]);
     // }
 
-    printf("\n\nBalloc Tests: \n");
-    void* tes = balloc(5);
-    void* tes2 = balloc(5);
-    sanity();
-    bfree(tes);
-    bfree(tes2);
-    sanity();
+    // printf("\n\nBalloc Tests: \n");
+    // void* tes = balloc(2906);
+    // void* tes2 = balloc(2727);
+    // void* tes3 = balloc(3734);
+    // sanity();
+    // bfree(tes);
+    // sanity();
+    // bfree(tes2);
+    // bfree(tes3);
+    // sanity();
 
+    for(int i = 0; i < 20; i++) {   
+        int size_1 = (rand()%(4000-1))+1;
+        int size_2 = (rand()%(4000-1))+1;
+        int size_3 = (rand()%(4000-1))+1;
+        printf("Testing Size %d, %d, %d\n", size_1, size_2, size_3);
+        void* p1 = balloc(size_1);
+        void* p2 = balloc(size_2);
+        void* p3 = balloc(size_3);
+        bfree(p1);
+        bfree(p2);
+        bfree(p3);
+        sanity();
+    }
     
     //behold = split(behold);
     //behold->level = 6;
