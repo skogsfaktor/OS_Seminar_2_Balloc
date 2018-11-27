@@ -244,7 +244,7 @@ void insert(struct head *block)
             bud->prev = NULL;
 
             int pre_merge_index = block->level;
-            printf("Buddy %d of block %p at level %d is free!\n", bud, block, block->level);
+            printf("Buddy %p of block %p at level %d is free!\n", bud, block, block->level);
             block = merge(block); //Does not increase level of block
             printf("Post-merge block id %p level %d\n", block, block->level);
             block->level = pre_merge_index+1; //Increase block level after merge 
@@ -338,7 +338,7 @@ void test()
     // }
 
     // printf("\n\nBalloc Tests: \n");
-    // void* tes = balloc(2906);
+    // void* tes = balloc(6);
     // void* tes2 = balloc(2727);
     // void* tes3 = balloc(3734);
     // sanity();
@@ -401,6 +401,14 @@ void test()
     // // sanity();
     // bfree(balloc_test3);
     // //sanity();
+}
+
+void bench() {
+    printf("#Benchtime! \n");
+    printf("#ms	 kbyte\n");
+    printf("0 8 3.5\n2 5 2.2\n10 4 1.6\n12 8 4.4\n14 16 25\n");
+
+    
 }
 
 //Should be called for every balloc

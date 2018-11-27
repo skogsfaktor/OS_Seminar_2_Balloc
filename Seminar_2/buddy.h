@@ -1,1 +1,2 @@
 void test();
+void bench();
