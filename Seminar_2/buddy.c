@@ -237,33 +237,39 @@ void insert(struct head *block)
     struct head *primary;
     
     //Merge recursively
-    printf("Inserting block %d at level %d\n", block, index);
-    printf("Buddy of block %d, buddy(buddy()) %d, buddy(buddy(buddy(()) %d\n", buddy(block), buddy(buddy(block)), buddy(buddy(buddy(block))));
+    printf("Inserting block %p at level %d, ", block, index);
+    printf("Buddy %p, buddy(buddy()) %p, buddy(buddy(buddy(()) %p\n", buddy(block), buddy(buddy(block)), buddy(buddy(buddy(block))));
     for (int i = index; i <= 7; i++)
     {
-        bud = buddy(block);
-        if (bud->status == Free && bud->level == block->level)
+        printf("Iteration %d\n", i);
+        if(i!=7) {
+            bud = buddy(block); //Segmentation error for i=7 sometime
+        }
+        if (bud->status == Free && bud->level == block->level && i!=7)
         {
             //Unlink the buddy from the list, can be anywhere in the list
-            if(bud->prev == NULL) {
-                printf("Buddy %d, level %d is first in the list, unlinking\n", bud, bud->level);
+            if(bud->prev == NULL) { 
+                printf("Buddy %p, level %d is first in the list, unlinking\n", bud, bud->level);
                 flists[bud->level] = bud->next;
-                bud->next->prev = NULL;
+                printf("Working\n");
+                if(bud->next != NULL) {
+                    bud->next->prev = NULL;
+                }
             } else {
-                printf("Buddy %d, level %d is in the middle of the list, unlinking\n", bud, bud->level);
+                printf("Buddy %p, level %d is in the middle of the list, unlinking\n", bud, bud->level);
                 bud->prev->next = bud->next;
                 bud->next->prev = bud->prev;
             }
 
             int pre_merge_index = block->level;
-            printf("Buddy %d of block %d at level %d is free!\n", bud, block, block->level);
-            block = merge(block); //Increases level of block
-            printf("Post-merge block id %d level %d\n", block, block->level);
-            block->level = pre_merge_index+1;
+            printf("Buddy %d of block %p at level %d is free!\n", bud, block, block->level);
+            block = merge(block); //Does not increase level of block
+            printf("Post-merge block id %p level %d\n", block, block->level);
+            block->level = pre_merge_index+1; //Increase block level after merge 
         }
         else
         {
-            printf("No more merges! Inserting block %d at index/iteration %d and level %d!\n", block, i, block->level);
+            printf("No more merges! Inserting block %p at index/iteration %d and level %d!\n", block, i, block->level);
 
             //If the list is empty
             if (flists[block->level] == NULL)
@@ -350,9 +356,11 @@ void test()
     // }
 
     printf("\n\nBalloc Tests: \n");
-    void* tes = balloc(4000);
+    void* tes = balloc(5);
+    void* tes2 = balloc(5);
     sanity();
     bfree(tes);
+    bfree(tes2);
     sanity();
 
     
