@@ -445,7 +445,7 @@ void bench() {
     int seed = time(NULL);
     srand(seed);
     int allocated_end = 0;
-    int end = 50;
+    int end = 100;
     int probability = 0;
     void* allocated[end];
     int balloced[end];
@@ -457,12 +457,13 @@ void bench() {
         printf("%d ", time);
         printf("%d ", mmap_count*4096);
         printf("%d ", allocated_memory);
-        printf("%d\n",allocated_blocks);
+        printf("%d\n", allocated_blocks);
         if(probability >= 70 && allocated_end > 0) {  
             bfree(allocated[allocated_end]);
             allocated[allocated_end] = NULL;
             allocated_memory -= balloced[allocated_end];
             allocated_blocks -= level_to_size[level(balloced[allocated_end])];
+            //printf("FREE: balloced %d, Level %d, Block size %d \n", balloced[allocated_end], level(balloced[allocated_end]), level_to_size[level(balloced[allocated_end])]);
             balloced[allocated_end] = 0;
             allocated_end--;   
         } else {
@@ -470,8 +471,9 @@ void bench() {
             int temp = (rand()%(4000-1))+1;
             allocated[allocated_end] = balloc(temp);
             allocated_memory += temp;
-            allocated_blocks += level_to_size[level(balloced[allocated_end])];
             balloced[allocated_end] = temp;
+            allocated_blocks += level_to_size[level(balloced[allocated_end])];
+            //printf("ALLOC: balloced %d, Level %d, Block size %d \n", balloced[allocated_end], level(balloced[allocated_end]), level_to_size[level(balloced[allocated_end])]);
         }
     }
     // printf("%d", (int)pow(2, 2));
