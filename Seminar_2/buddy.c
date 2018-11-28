@@ -5,13 +5,15 @@
 #include <stdio.h>
 #include <sys/sysinfo.h>
 #include <assert.h>
+#include <time.h>
+#include <math.h>
 
 //Compile with gcc -c buddy.c
 
 //The smallest block i.e. 2^5(MIN) = 32 bytes
 #define MIN 5
 //The maximum amount of levels i.e. 32, 64.. 4 KByte maximum
-//0 32, 1 64, 2 128, 3 256, 4 512, 5 1024, 6 2056, 7 4096
+//0 32, 1 64, 2 128, 3 256, 4 512, 5 1024, 6 2048, 7 4096
 #define LEVELS 8
 //Defines the size of the largest block(2^12 bytes), used in mmap
 #define PAGE 4096
@@ -22,6 +24,10 @@ enum flag
     Free,
     Taken
 };
+
+//Benchmarking variables
+//mmap count
+int mmap_count = 0;
 
 //Holds the double linked free lists of each layer
 struct head *flists[LEVELS] = {NULL};
@@ -58,6 +64,7 @@ struct head *new ()
     new->status = Free;
     //Should be 8 right?? Since level(32) is 1
     new->level = LEVELS - 1;
+    mmap_count++;
     return new;
 }
 
@@ -150,15 +157,15 @@ struct head *find(int index)
         //Split the block until the required size has been reached
         for (int i = 6; i >= index; i--)
         {
-            printf("Iteration/Level %d: ", i);
-            printf("Block %p, ", new_block);
+            //printf("Iteration/Level %d: ", i);
+            //printf("Block %p, ", new_block);
             new_block = split(new_block);
             new_block->status = Free;
             buddy(new_block)->status = Free;
             new_block->level = i;
             buddy(new_block)->level = i;
-            printf("Split %p, Buddy(split) %p, Buddy(Buddy(split)) %p\n", new_block, buddy(new_block), buddy(buddy(new_block)));
-            printf("Split level %d, merge(split) %p, merge(split) level %d\n", new_block->level, merge(new_block), merge(new_block)->level);
+            //printf("Split %p, Buddy(split) %p, Buddy(Buddy(split)) %p\n", new_block, buddy(new_block), buddy(buddy(new_block)));
+            //printf("Split level %d, merge(split) %p, merge(split) level %d\n", new_block->level, merge(new_block), merge(new_block)->level);
             if (flists[i] != NULL)
             {
                 //The first block in the list
@@ -171,7 +178,7 @@ struct head *find(int index)
             //new_block = split(new_block);
         }
         new_block->status = Taken;
-        printf("Returning block %p with level %d\n", new_block, new_block->level);
+        //printf("Returning block %p with level %d\n", new_block, new_block->level);
         return new_block;
         //new_block->level = index;
     }
@@ -196,7 +203,7 @@ struct head *find(int index)
     }
 
     new_block->status = Taken;
-    printf("Should return block with index %d: %d\n", index, new_block->level);
+    // printf("Should return block with index %d: %d\n", index, new_block->level);
     //If there is a free block, fix the list and return the block(with the header)
     return new_block;
 }
@@ -205,7 +212,7 @@ struct head *find(int index)
 //Needs to check for merging recursively
 void insert(struct head *block)
 {
-    printf("FREE START:\n");
+    // printf("FREE START:\n");
     
     int index = block->level;
     block->status = Free;
@@ -213,13 +220,13 @@ void insert(struct head *block)
     struct head *primary;
     
     //Merge recursively
-    printf("Inserting block %p at level %d, ", block, index);
+    // printf("Inserting block %p at level %d, ", block, index);
     if(block->level != 7) {
-        printf("Buddy %p, buddy(buddy()) %p, buddy(buddy(buddy(()) %p\n", buddy(block), buddy(buddy(block)), buddy(buddy(buddy(block))));
+        // printf("Buddy %p, buddy(buddy()) %p, buddy(buddy(buddy(()) %p\n", buddy(block), buddy(buddy(block)), buddy(buddy(buddy(block))));
     }
     for (int i = index; i <= 7; i++)
     {
-        printf("Iteration %d\n", i);
+        // printf("Iteration %d\n", i);
         if(i!=7) {
             bud = buddy(block); //Segmentation error for i=7 sometime
         }
@@ -227,14 +234,14 @@ void insert(struct head *block)
         {
             //Unlink the buddy from the list, can be anywhere in the list
             if(bud->prev == NULL) { 
-                printf("Buddy %p, level %d is first in the list, unlinking\n", bud, bud->level);
+                // printf("Buddy %p, level %d is first in the list, unlinking\n", bud, bud->level);
                 flists[bud->level] = bud->next;
-                printf("Working\n");
+                // printf("Working\n");
                 if(bud->next != NULL) {
                     bud->next->prev = NULL;
                 }
             } else {
-                printf("Buddy %p, level %d is later in the list, unlinking\n", bud, bud->level);
+                // printf("Buddy %p, level %d is later in the list, unlinking\n", bud, bud->level);
                 bud->prev->next = bud->next;
                 if(bud->next != NULL) {
                     bud->next->prev = bud->prev;
@@ -244,25 +251,25 @@ void insert(struct head *block)
             bud->prev = NULL;
 
             int pre_merge_index = block->level;
-            printf("Buddy %p of block %p at level %d is free!\n", bud, block, block->level);
+            // printf("Buddy %p of block %p at level %d is free!\n", bud, block, block->level);
             block = merge(block); //Does not increase level of block
-            printf("Post-merge block id %p level %d\n", block, block->level);
+            // printf("Post-merge block id %p level %d\n", block, block->level);
             block->level = pre_merge_index+1; //Increase block level after merge 
         }
         else
         {
-            printf("No more merges! Inserting block %p at index/iteration %d and level %d!\n", block, i, block->level);
+            // printf("No more merges! Inserting block %p at index/iteration %d and level %d!\n", block, i, block->level);
 
             //If the list is empty
             if (flists[block->level] == NULL)
             {
-                printf("List is at level %d is empty, inserting\n", block->level);
+                // printf("List is at level %d is empty, inserting\n", block->level);
                 flists[block->level] = block;
                 break;
             }
             else
             {
-                printf("List at level %d is NOT empty, inserting\n", block->level);
+                // printf("List at level %d is NOT empty, inserting\n", block->level);
                 //Get the first block
                 struct head *first_block = flists[block->level];
                 if(first_block == block) {
@@ -311,6 +318,27 @@ void bfree(void *memory)
         insert(block);
     }
     return;
+}
+
+//Should be called for every balloc
+//Checks that all pointers are correct
+void sanity()
+{
+    printf("\nSANITY CHECK:\n");
+    for (int i = 0; i <= 7; i++)
+    {
+        if (flists[i] != NULL)
+        {
+            struct head *block = flists[i];
+            printf("First block ID %p, level %d, Back %p, Next %p, Taken %d\n", block, block->level, block->prev, block->next, block->status);
+            while (block->next != NULL)
+            {
+                block = block->next;
+                printf("    List block ID %p, Level %d, Back %p, Next %p, Taken %d\n", block, block->level, block->prev, block->next, block->status);
+            }
+        }
+    }
+    printf("\n");
 }
 
 //Used for testing basic functions
@@ -406,28 +434,45 @@ void test()
 void bench() {
     printf("#Benchtime! \n");
     printf("#ms	 kbyte\n");
-    printf("0 8 3.5\n2 5 2.2\n10 4 1.6\n12 8 4.4\n14 16 25\n");
+    //printf("0 8 3.5\n2 5 2.2\n10 4 1.6\n12 8 4.4\n14 16 25\n");
 
-    
-}
+    // double start_time = clock(); 
+    // test();
+    // double stop_time = clock(); 
+    // double time_taken = ((double)stop_time - start_time) * 1000 /CLOCKS_PER_SEC; // in seconds 
+    // printf("#Time taken %f\n", time_taken);
+    int level_to_size[8] = {32, 64, 128, 256, 512, 1024, 2048, 4096};
+    int seed = time(NULL);
+    srand(seed);
+    int allocated_end = 0;
+    int end = 50;
+    int probability = 0;
+    void* allocated[end];
+    int balloced[end];
+    int allocated_memory = 0;
+    int allocated_blocks = 0;
 
-//Should be called for every balloc
-//Checks that all pointers are correct
-void sanity()
-{
-    printf("\nSANITY CHECK:\n");
-    for (int i = 0; i <= 7; i++)
-    {
-        if (flists[i] != NULL)
-        {
-            struct head *block = flists[i];
-            printf("First block ID %p, level %d, Back %p, Next %p, Taken %d\n", block, block->level, block->prev, block->next, block->status);
-            while (block->next != NULL)
-            {
-                block = block->next;
-                printf("    List block ID %p, Level %d, Back %p, Next %p, Taken %d\n", block, block->level, block->prev, block->next, block->status);
-            }
+    for(int time = 0; time < end; time++) {
+        probability = (rand()%(100-0))+0;
+        printf("%d ", time);
+        printf("%d ", mmap_count*4096);
+        printf("%d ", allocated_memory);
+        printf("%d\n",allocated_blocks);
+        if(probability >= 70 && allocated_end > 0) {  
+            bfree(allocated[allocated_end]);
+            allocated[allocated_end] = NULL;
+            allocated_memory -= balloced[allocated_end];
+            allocated_blocks -= level_to_size[level(balloced[allocated_end])];
+            balloced[allocated_end] = 0;
+            allocated_end--;   
+        } else {
+            allocated_end++;
+            int temp = (rand()%(4000-1))+1;
+            allocated[allocated_end] = balloc(temp);
+            allocated_memory += temp;
+            allocated_blocks += level_to_size[level(balloced[allocated_end])];
+            balloced[allocated_end] = temp;
         }
     }
-    printf("\n");
+    // printf("%d", (int)pow(2, 2));
 }
