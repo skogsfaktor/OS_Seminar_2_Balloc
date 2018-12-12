@@ -74,12 +74,12 @@ void release(int *lock)
 
 void add(struct green_t *thread)
 {
-    printf("ADD: queue %p\n", queue);
-    printf("ADD: adding %p to queue\n", thread);
+    // printf("ADD: queue %p\n", queue);
+    // printf("ADD: adding %p to queue\n", thread);
     //printf("ADD: Before adding to queue\n");
     if (queue == NULL)
     {
-        printf("ADD: queue is null, adding to queue\n");
+        // printf("ADD: queue is null, adding to queue\n");
         queue = thread;
         return;
     }
@@ -149,7 +149,7 @@ struct green_t *next_thread()
 void timer_handler(int sig)
 {
     green_t *susp = running;
-    printf("HANDLE IT!\n");
+    // printf("HANDLE IT!\n");
     //Add running to ready queue
     add(susp);
     //Schedule next thread
@@ -384,6 +384,7 @@ int green_yield()
 }
 
 //Allow several threads to wait for the same thread.
+//
 int green_join(green_t *thread)
 {
     //If thread already is half dead
