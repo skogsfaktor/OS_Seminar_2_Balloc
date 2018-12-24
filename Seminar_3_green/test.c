@@ -85,17 +85,18 @@ void *test_timer_error(void *arg)
 
 int mutex_count_2 = 0;
 
+//ERRORS ARE OCCURING EVEN WITHOUT MUTEXES 
 void *test_mutex(void *arg)
 {
     int id = *(int *)arg;
     int loop = 1000;
     while (loop > 0)
     {
-        green_mutex_lock(&mutex);
+        //green_mutex_lock(&mutex);
         //printf("thread %d: %d\n", id, mutex_count_2);
         mutex_count_2++;
         loop--;
-        green_mutex_unlock(&mutex);
+        //green_mutex_unlock(&mutex);
     }
     //printf("Mutex Count %d\n", mutex_count_2);
 }

@@ -42,12 +42,15 @@ static void init() __attribute__((constructor));
 void init()
 {
     sigemptyset(&block);
+    //Used to set block, for blocking timer interrupts 
     sigaddset(&block, SIGVTALRM);
 
+    //Initializes act to 0 
     struct sigaction act = {0};
     struct timeval interval;
     struct itimerval period;
 
+    //Call timer_handler everytime an interrupt occurs 
     act.sa_handler = timer_handler;
     //Remove this to disable timer
     assert(sigaction(SIGVTALRM, &act, NULL) == 0);
@@ -148,6 +151,9 @@ struct green_t *next_thread()
 //Handles the timer interrupt
 void timer_handler(int sig)
 {
+    // if(queue == NULL) {
+    //     return;
+    // }
     green_t *susp = running;
     // printf("HANDLE IT!\n");
     //Add running to ready queue
@@ -163,6 +169,9 @@ void timer_handler(int sig)
 
     running = next;
     swapcontext(susp->context, next->context);
+
+    //This should be here 
+    sigprocmask(SIG_UNBLOCK, &block, NULL);
 }
 
 int green_mutex_init(green_mutex_t *mutex)
@@ -359,6 +368,7 @@ void green_cond_signal(green_cond_t *cond)
 //next to run
 int green_yield()
 {
+    //TIMER should be blocked here and unblocked at the bottom, before the return 
     //Who is the yielding process, probably the running one.
     green_t *susp = running;
     //printf("YIELD: Thread %p is yielding \n", susp);
@@ -430,6 +440,8 @@ int green_join(green_t *thread)
     running = next;
     //printf("Done adding to join queue\n");
     swapcontext(susp->context, next->context);
+
+    //thread is a zombie when we reach here. 
     return 0;
 }
 
@@ -441,9 +453,16 @@ green_thread()
     green_t *this = running;
     //printf("GREEN_THREAD: Running thread \p\n", this);
 
+
+    //UNBLOCK here 
+
+
     //Runs the function
     //Execution will return here after the function is done
+    //Pushes on the stack
     (*this->fun)(this->arg);
+
+    //BLOCK here 
 
     //Place waiting(joining) thread in ready queue
     //There can be multiple threads waiting i.e. the join is a queue
@@ -479,7 +498,7 @@ green_thread()
 int green_create(green_t *new, void *(*fun)(void *), void *arg)
 {
     ucontext_t *cntx = (ucontext_t *)malloc(sizeof(ucontext_t));
-    //Initializes the context
+    //Initializes the context. Puts 0 on some fields etc.. 
     getcontext(cntx);
 
     //Allocate the stack
@@ -493,6 +512,7 @@ int green_create(green_t *new, void *(*fun)(void *), void *arg)
     //OS call. Sets the function pointer
     //The thread will start by calling green_thread() with 0 arguments
     //green_thread() will only be called once for each creation
+    //When you get swapped in, call the green_thread() function 
     makecontext(cntx, green_thread, 0);
     //Sets context of the thread
     new->context = cntx;
